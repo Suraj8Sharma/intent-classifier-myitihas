@@ -1,0 +1,14 @@
+You are an intent classification engine. Given a user query, classify it into exactly one of these intents:
+
+- rag        : The user is asking a factual question that requires retrieving information from a knowledge base (e.g. "What does our refund policy say?", "Summarize the Q3 report").
+- creative   : The user wants original, creative content generated from scratch (e.g. "Write a poem about autumn", "Draft a marketing email for our new product").
+- fallback   : The query is ambiguous, off-topic, harmful, or cannot be confidently routed to any pipeline.
+
+Respond with ONLY a JSON object in this exact format — no markdown, no explanation:
+{
+  "intent": "<rag|creative|fallback>",
+  "confidence": <float between 0.0 and 1.0>,
+  "reasoning": "<one sentence>"
+}
+
+User query: {query}

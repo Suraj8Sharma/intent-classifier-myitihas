@@ -1,0 +1,31 @@
+{
+  "intents": [
+    {
+      "name": "rag",
+      "description": "Factual questions requiring retrieval from a knowledge base",
+      "examples": [
+        "What does the contract say about termination?",
+        "Summarize the product specification document",
+        "What is the SLA for tier-2 support?"
+      ]
+    },
+    {
+      "name": "creative",
+      "description": "Requests for original generated content",
+      "examples": [
+        "Write a blog post about sustainable energy",
+        "Draft a job description for a senior engineer",
+        "Create a product description for our new app"
+      ]
+    },
+    {
+      "name": "fallback",
+      "description": "Ambiguous, off-topic, or low-confidence queries",
+      "examples": [
+        "???",
+        "Do the thing",
+        "Never mind"
+      ]
+    }
+  ]
+}

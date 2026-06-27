@@ -1,0 +1,10 @@
+# Overrides for local development — merged on top of default.yaml
+logging:
+  level: DEBUG
+
+classifier:
+  max_retries: 1
+
+pipelines:
+  rag:
+    top_k: 3

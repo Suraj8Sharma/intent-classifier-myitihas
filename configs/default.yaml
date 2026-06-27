@@ -1,0 +1,26 @@
+classifier:
+  model: "${CLASSIFIER_MODEL}"
+  confidence_threshold: 0.75      # below this score → fallback pipeline
+  max_retries: 2
+
+pipelines:
+  rag:
+    model: "${RAG_MODEL}"
+    top_k: 5                      # number of chunks to retrieve
+    chunk_size: 512
+    chunk_overlap: 64
+  creative:
+    model: "${CREATIVE_MODEL}"
+    temperature: 0.9
+    max_tokens: 1024
+  fallback:
+    message: "I'm not sure how to help with that. Could you rephrase?"
+
+vector_store:
+  provider: "${VECTOR_STORE_PROVIDER}"
+  persist_dir: "${CHROMA_PERSIST_DIR}"
+  collection_name: "intent_docs"
+
+logging:
+  level: "${LOG_LEVEL}"
+  format: json

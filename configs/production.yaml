@@ -1,0 +1,11 @@
+# Overrides for production — merged on top of default.yaml
+logging:
+  level: WARNING
+
+classifier:
+  confidence_threshold: 0.80
+  max_retries: 3
+
+pipelines:
+  rag:
+    top_k: 8
