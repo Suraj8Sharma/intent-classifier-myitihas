@@ -1,12 +1,24 @@
 from enum import Enum
+from typing import Optional
 
 from pydantic import BaseModel, Field
+from typing_extensions import TypedDict
 
 
 class Intent(str, Enum):
     RAG = "rag"
     CREATIVE = "creative"
     FALLBACK = "fallback"
+
+
+class GraphState(TypedDict):
+    """Shared state threaded through every LangGraph node in the pipeline."""
+
+    query: str
+    intent: Optional[str]
+    confidence: Optional[float]
+    reasoning: Optional[str]
+    final_response: Optional[str]
 
 
 class ClassifyRequest(BaseModel):

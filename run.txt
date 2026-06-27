@@ -1,0 +1,219 @@
+Intent Classifier — Local Run Guide
+=====================================
+Stack: LangGraph 0.6 · instructor 1.15 · qwen3:8b via Ollama · ChromaDB · FastAPI
+
+All commands are run from the repository root unless stated otherwise.
+
+
+STEP 1 — Verify the Ollama daemon is running
+---------------------------------------------
+Check if Ollama is already running:
+
+    curl http://localhost:11434/api/tags
+
+Expected: a JSON object listing available models.
+
+If you get "Connection refused", start the daemon:
+
+    ollama serve
+
+Leave it running in a dedicated terminal.  It listens on port 11434 by default.
+
+
+STEP 2 — Pull the required models (first-time only)
+----------------------------------------------------
+The classifier, RAG, and creative pipelines all use qwen3:8b:
+
+    ollama pull qwen3:8b
+
+The embeddings pipeline uses nomic-embed-text:
+
+    ollama pull nomic-embed-text
+
+Both models are served locally; no internet connection is needed at inference
+time after the pull.  Verify they appear in the model list:
+
+    ollama list
+
+
+STEP 3 — Activate the Python virtual environment
+-------------------------------------------------
+From the repository root:
+
+    source venv/bin/activate
+
+Your prompt should change to show (venv).  Confirm the interpreter:
+
+    python --version
+    # Expected: Python 3.10.x
+
+
+STEP 4 — Install / synchronise Python dependencies
+----------------------------------------------------
+Install runtime dependencies:
+
+    pip install -r requirements.txt
+
+Install dev/test dependencies (includes pytest, black, flake8):
+
+    pip install -r requirements-dev.txt
+
+Verify no dependency conflicts:
+
+    pip check
+    # Expected: No broken requirements found.
+
+Check key package versions:
+
+    python -c "from importlib.metadata import version; [print(p, version(p)) for p in ['langgraph','instructor','openai','chromadb']]"
+    # Expected output (approximate):
+    #   langgraph  0.6.11
+    #   instructor 1.15.3
+    #   openai     2.44.0
+    #   chromadb   1.5.9
+
+
+STEP 5 — Set PYTHONPATH so src.* imports resolve
+-------------------------------------------------
+The project uses absolute imports (e.g. `from src.models.schemas import Intent`).
+Export the repository root so Python can resolve the `src` package:
+
+    export PYTHONPATH="$(pwd)"
+
+Add this line to your shell profile (.bashrc / .zshrc) to avoid repeating it:
+
+    echo 'export PYTHONPATH="/home/ubuntu/Desktop/intent-classifier-myitihas"' >> ~/.bashrc
+
+Verify:
+
+    python -c "from src.models.schemas import Intent; print('OK', list(Intent))"
+    # Expected: OK [<Intent.RAG: 'rag'>, <Intent.CREATIVE: 'creative'>, <Intent.FALLBACK: 'fallback'>]
+
+
+STEP 6 — Configure the environment file
+-----------------------------------------
+Copy the template if .env doesn't exist yet:
+
+    cp .env .env.backup   # back up first (it already has defaults)
+
+Key values in .env:
+
+    OLLAMA_BASE_URL=http://localhost:11434/v1   # Ollama OpenAI-compatible endpoint
+    OLLAMA_API_KEY=ollama                        # placeholder; Ollama ignores it
+    CLASSIFIER_MODEL=qwen3:8b
+    RAG_MODEL=qwen3:8b
+    CREATIVE_MODEL=qwen3:8b
+    EMBEDDING_MODEL=nomic-embed-text
+    API_KEY=                                     # leave blank to disable auth in dev
+
+Leave API_KEY blank (empty string) so the evaluation UI can send requests
+without an X-API-Key header.  Set it to a secret value in production.
+
+
+STEP 7 — Launch the FastAPI server
+------------------------------------
+Run the server from the repository root with PYTHONPATH set:
+
+    python src/api/main.py
+
+The server starts with uvicorn in reload mode.  Expected log output:
+
+    {"event": "startup", "env": "development", "model": "qwen3:8b", ...}
+    INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+
+Available endpoints once the server is running:
+
+    GET  http://localhost:8000/health              → {"status": "ok"}
+    POST http://localhost:8000/api/v1/classify     → classification + pipeline response
+    GET  http://localhost:8000/ui/                 → multilingual evaluation dashboard
+    GET  http://localhost:8000/docs                → interactive Swagger UI
+
+
+STEP 8 — Smoke-test the classify endpoint
+-------------------------------------------
+English factual query:
+
+    curl -s -X POST http://localhost:8000/api/v1/classify \
+      -H "Content-Type: application/json" \
+      -d '{"query": "When was the First Battle of Panipat fought?"}' | python -m json.tool
+
+Hindi query:
+
+    curl -s -X POST http://localhost:8000/api/v1/classify \
+      -H "Content-Type: application/json" \
+      -d '{"query": "पानीपत की पहली लड़ाई कब हुई थी?"}' | python -m json.tool
+
+Marathi creative query:
+
+    curl -s -X POST http://localhost:8000/api/v1/classify \
+      -H "Content-Type: application/json" \
+      -d '{"query": "मराठा साम्राज्याबद्दल एक रोमांचक गोष्ट सांगा."}' | python -m json.tool
+
+Expected response shape:
+    {
+      "query": "...",
+      "intent": "rag | creative | fallback",
+      "confidence": 0.0-1.0,
+      "answer": "...",
+      "session_id": null
+    }
+
+
+STEP 9 — Open the evaluation UI
+---------------------------------
+Open a browser and navigate to:
+
+    http://localhost:8000/ui/
+
+Features:
+  - Backend status pill (green = online)
+  - Preset dropdown with 18 multilingual test cases (EN / HI / MR)
+  - UTF-8 textarea for direct Devanagari input
+  - Optional X-API-Key header field
+  - Intent badge (colour-coded: green=RAG, blue=Creative, red=Fallback)
+  - Animated confidence bar
+  - LangGraph node routing path diagram
+  - Classifier reasoning and pipeline response
+  - Ctrl+Enter keyboard shortcut to submit
+
+
+STEP 10 — Run the test suite
+------------------------------
+With the venv active and PYTHONPATH set:
+
+    python -m pytest -v
+
+Expected: 20 passed.
+
+Lint and formatting checks:
+
+    flake8 src tests
+    black --check src tests
+
+
+TROUBLESHOOTING
+---------------
+
+Problem: "Connection refused" when hitting /api/v1/classify from the UI
+Solution: Make sure both `ollama serve` AND `python src/api/main.py` are running.
+
+Problem: qwen3:8b outputs <think> blocks and the classifier fails to parse
+Solution: The system prompt already instructs the model to suppress thinking output.
+  If it persists, add CLASSIFIER_MODEL=qwen3:8b:nothink in .env (uses the
+  dedicated no-think variant) or reduce max_retries in classify_intent_node.
+
+Problem: KeyError or pydantic ValidationError from instructor
+Solution: qwen3:8b may need a few seconds to load on first request.  Retry once.
+  If persistent, check: curl http://localhost:11434/api/tags | grep qwen3
+
+Problem: RAG returns "I don't have enough information..."
+Solution: The ChromaDB collection is empty until you ingest documents.  Run:
+    python scripts/ingest_data.py
+    python scripts/generate_embeddings.py
+
+Problem: ImportError — "No module named 'src'"
+Solution: PYTHONPATH is not set.  Run: export PYTHONPATH="$(pwd)"
+
+Problem: CORS errors in the browser console
+Solution: The server adds CORSMiddleware with allow_origins=["*"].  If you see
+  CORS errors it means the server is not running or is on a different port.

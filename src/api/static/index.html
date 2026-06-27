@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Intent Classifier — Evaluation Dashboard</title>
+
+  <!--
+    Noto Sans Devanagari — loaded from Google Fonts CDN.
+    If running fully air-gapped, download the font and serve from /ui/fonts/.
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+
+  <style>
+    /* ===================================================================
+       Design tokens — GitHub-inspired dark theme
+    =================================================================== */
+    :root {
+      --bg-page:      #0d1117;
+      --bg-card:      #161b22;
+      --bg-input:     #0d1117;
+      --bg-badge:     #21262d;
+      --border:       #30363d;
+      --border-focus: #388bfd;
+
+      --text-primary:   #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted:     #6e7681;
+
+      /* intent colours */
+      --rag-color:      #3fb950;   /* green */
+      --rag-bg:         #0f3d1c;
+      --creative-color: #58a6ff;   /* blue */
+      --creative-bg:    #0d2a4a;
+      --fallback-color: #f85149;   /* red */
+      --fallback-bg:    #3d1515;
+
+      --accent:       #388bfd;
+      --btn-bg:       #238636;
+      --btn-hover:    #2ea043;
+      --btn-active:   #196c2e;
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+
+      --mono: "JetBrains Mono", "Courier New", monospace;
+      --sans: "Inter", system-ui, -apple-system, sans-serif;
+      --deva: "Noto Sans Devanagari", "Inter", system-ui, sans-serif;
+    }
+
+    /* ===================================================================
+       Reset & base
+    =================================================================== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { font-size: 15px; }
+
+    body {
+      background: var(--bg-page);
+      color: var(--text-primary);
+      font-family: var(--sans);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ===================================================================
+       Layout
+    =================================================================== */
+    .shell {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 1.25rem 4rem;
+    }
+
+    /* ===================================================================
+       Header
+    =================================================================== */
+    .header {
+      padding: 2rem 0 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .header-text { flex: 1; min-width: 200px; }
+
+    .header h1 {
+      font-size: 1.45rem;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .header p {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      font-size: 0.78rem;
+      font-family: var(--mono);
+      color: var(--text-secondary);
+      background: var(--bg-card);
+      cursor: default;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      transition: background 0.3s;
+    }
+
+    .status-pill.online .status-dot  { background: var(--rag-color); }
+    .status-pill.offline .status-dot { background: var(--fallback-color); }
+
+    /* ===================================================================
+       Cards
+    =================================================================== */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .card-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+      margin-bottom: 1rem;
+    }
+
+    /* ===================================================================
+       Preset selector
+    =================================================================== */
+    .form-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    label.field-label {
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    select, textarea, input[type="text"] {
+      width: 100%;
+      background: var(--bg-input);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.55rem 0.75rem;
+      font-family: var(--sans);
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    select { cursor: pointer; }
+
+    select:focus, textarea:focus, input[type="text"]:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(56, 139, 253, 0.15);
+    }
+
+    textarea#query-input {
+      font-family: var(--deva);
+      font-size: 1rem;
+      line-height: 1.7;
+      resize: vertical;
+      min-height: 110px;
+    }
+
+    /* ===================================================================
+       Optional API key row
+    =================================================================== */
+    .auth-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .auth-row input[type="text"] {
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      flex: 1;
+    }
+
+    .auth-row label.field-label {
+      white-space: nowrap;
+      margin: 0;
+    }
+
+    /* ===================================================================
+       Submit button
+    =================================================================== */
+    .btn-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .btn-submit {
+      background: var(--btn-bg);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 0.6rem 1.4rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.05s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-submit:hover:not(:disabled) { background: var(--btn-hover); }
+    .btn-submit:active:not(:disabled) {
+      background: var(--btn-active);
+      transform: scale(0.98);
+    }
+    .btn-submit:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+
+    .btn-submit.loading .spinner { display: block; }
+    .btn-submit.loading .btn-label { opacity: 0.7; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .latency-hint {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-family: var(--mono);
+    }
+
+    /* ===================================================================
+       Error panel
+    =================================================================== */
+    .error-panel {
+      display: none;
+      background: #3d1515;
+      border: 1px solid var(--fallback-color);
+      border-radius: var(--radius-md);
+      padding: 0.9rem 1.1rem;
+      margin-top: 1.25rem;
+      color: #ff9492;
+      font-size: 0.88rem;
+    }
+
+    .error-panel strong { color: var(--fallback-color); }
+
+    /* ===================================================================
+       Results card
+    =================================================================== */
+    .results-card { display: none; }
+
+    .telemetry-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 1.1rem;
+      align-items: start;
+    }
+
+    /* Intent badge */
+    .intent-badge {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 0.65rem 1.1rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      background: var(--bg-badge);
+      min-width: 110px;
+      text-align: center;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .intent-badge .badge-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    .intent-badge .badge-value {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .intent-badge.rag      { background: var(--rag-bg);      border-color: var(--rag-color);      }
+    .intent-badge.rag .badge-value      { color: var(--rag-color);      }
+    .intent-badge.creative { background: var(--creative-bg); border-color: var(--creative-color); }
+    .intent-badge.creative .badge-value { color: var(--creative-color); }
+    .intent-badge.fallback { background: var(--fallback-bg); border-color: var(--fallback-color); }
+    .intent-badge.fallback .badge-value { color: var(--fallback-color); }
+
+    /* Right-side telemetry stack */
+    .telemetry-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    /* Confidence bar */
+    .confidence-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .confidence-label {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      min-width: 75px;
+    }
+
+    .bar-track {
+      flex: 1;
+      height: 8px;
+      background: var(--bg-badge);
+      border-radius: 99px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      width: 0%;
+      background: var(--rag-color);
+      transition: width 0.5s ease, background 0.3s;
+    }
+
+    .confidence-pct {
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      min-width: 42px;
+      text-align: right;
+      font-weight: 600;
+    }
+
+    /* Latency */
+    .meta-row {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+    }
+
+    .meta-chip {
+      font-size: 0.75rem;
+      font-family: var(--mono);
+      color: var(--text-muted);
+      background: var(--bg-badge);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 7px;
+    }
+
+    /* Reasoning */
+    .reasoning-section {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .section-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 0.4rem;
+    }
+
+    .reasoning-text {
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      font-style: italic;
+    }
+
+    /* Pipeline response */
+    .response-section {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .response-body {
+      font-family: var(--deva);
+      font-size: 0.95rem;
+      line-height: 1.8;
+      color: var(--text-primary);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* ===================================================================
+       Route path diagram
+    =================================================================== */
+    .pipeline-path {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 0.5rem;
+    }
+
+    .path-node {
+      font-size: 0.72rem;
+      font-family: var(--mono);
+      background: var(--bg-badge);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 8px;
+      color: var(--text-secondary);
+    }
+
+    .path-node.active {
+      background: var(--rag-bg);
+      border-color: var(--rag-color);
+      color: var(--rag-color);
+    }
+
+    .path-node.active.creative {
+      background: var(--creative-bg);
+      border-color: var(--creative-color);
+      color: var(--creative-color);
+    }
+
+    .path-node.active.fallback {
+      background: var(--fallback-bg);
+      border-color: var(--fallback-color);
+      color: var(--fallback-color);
+    }
+
+    .path-arrow {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    /* ===================================================================
+       Footer
+    =================================================================== */
+    .footer {
+      margin-top: 3rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    /* ===================================================================
+       Responsive
+    =================================================================== */
+    @media (max-width: 600px) {
+      .telemetry-grid { grid-template-columns: 1fr; }
+      .intent-badge { flex-direction: row; min-width: unset; padding: 0.5rem 0.9rem; }
+    }
+  </style>
+</head>
+
+<body>
+<div class="shell">
+
+  <!-- ================================================================
+       Header
+  ================================================================ -->
+  <header class="header">
+    <div class="header-text">
+      <h1>Intent Classifier &mdash; Evaluation Dashboard</h1>
+      <p>LangGraph · qwen3:8b · ChromaDB · Ollama &nbsp;|&nbsp; Multilingual: EN / हिंदी / मराठी</p>
+    </div>
+    <div class="status-pill" id="status-pill">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-label">checking&hellip;</span>
+    </div>
+  </header>
+
+  <!-- ================================================================
+       Input card
+  ================================================================ -->
+  <section class="card">
+    <div class="card-title">Query Input</div>
+
+    <!-- Preset dropdown -->
+    <div class="form-row">
+      <label class="field-label" for="preset-select">Load a test preset</label>
+      <select id="preset-select">
+        <option value="">— choose a preset query —</option>
+
+        <optgroup label="RAG — Factual / Historical">
+          <option value="When was the First Battle of Panipat fought, and who were the key commanders?">EN &middot; When was the First Battle of Panipat fought?</option>
+          <option value="पानीपत की पहली लड़ाई कब हुई थी और इसके क्या परिणाम हुए?">HI &middot; पानीपत की पहली लड़ाई कब हुई थी?</option>
+          <option value="पानिपतची पहिली लढाई कधी झाली आणि त्याचे ऐतिहासिक महत्त्व काय आहे?">MR &middot; पानिपतची पहिली लढाई कधी झाली?</option>
+          <option value="What were the main causes of the decline of the Maratha Empire?">EN &middot; Causes of the Maratha Empire's decline</option>
+          <option value="शिवाजी महाराजांनी मराठा साम्राज्याची स्थापना कशी केली?">MR &middot; शिवाजी महाराजांनी साम्राज्य कसे स्थापन केले?</option>
+          <option value="मुगल साम्राज्य के पतन के मुख्य कारण क्या थे?">HI &middot; मुगल साम्राज्य के पतन के कारण</option>
+          <option value="What is our refund policy for digital products purchased after 2024?">EN &middot; Refund policy for digital products</option>
+        </optgroup>
+
+        <optgroup label="Creative — Storytelling / Generation">
+          <option value="मराठा साम्राज्याबद्दल एक रोमांचक ऐतिहासिक गोष्ट सांगा.">MR &middot; मराठा साम्राज्याबद्दल एक रोमांचक गोष्ट सांगा</option>
+          <option value="Write a dramatic historical short story about the defence of Sinhagad fort.">EN &middot; Dramatic story about Sinhagad fort</option>
+          <option value="राजपूत शौर्य पर एक छोटी कविता लिखिए।">HI &middot; राजपूत शौर्य पर एक कविता लिखिए</option>
+          <option value="Write a marketing tagline for an eco-friendly chai brand inspired by Indian heritage.">EN &middot; Marketing tagline — eco-friendly chai brand</option>
+          <option value="एक उत्साहवर्धक भाषण लिहा जे तरुणांना त्यांच्या स्वप्नांचा पाठपुरावा करण्यास प्रेरित करेल.">MR &middot; तरुणांसाठी प्रेरणादायी भाषण लिहा</option>
+          <option value="Write a professional email announcing the launch of our new AI assistant product.">EN &middot; Product-launch announcement email</option>
+        </optgroup>
+
+        <optgroup label="Fallback — Out-of-Domain / Ambiguous">
+          <option value="How do I write a React component with TypeScript generics?">EN &middot; React TypeScript question (out-of-domain)</option>
+          <option value="asdfghjkl zxcvbnm qwerty">EN &middot; Keyboard gibberish</option>
+          <option value="???">EN &middot; Punctuation-only query</option>
+          <option value="How do I install Python on Windows 11?">EN &middot; Dev-tooling question (off-topic)</option>
+          <option value="मुझे नहीं पता कि मुझे क्या पूछना है।">HI &middot; Ambiguous / uncertain query</option>
+          <option value="SELECT * FROM users WHERE 1=1; DROP TABLE users;--">EN &middot; SQL injection string</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <!-- Query textarea -->
+    <div class="form-row">
+      <label class="field-label" for="query-input">
+        Query &nbsp;<span style="color:var(--text-muted);font-weight:400;">(English, हिंदी, मराठी, or any language)</span>
+      </label>
+      <textarea
+        id="query-input"
+        lang="mul"
+        placeholder="Type or paste a query here… आपका प्रश्न यहाँ लिखें… इथे प्रश्न टाइप करा…"
+        autocomplete="off"
+        spellcheck="false"
+      ></textarea>
+    </div>
+
+    <!-- Optional API key -->
+    <div class="auth-row">
+      <label class="field-label" for="api-key-input">X-API-Key</label>
+      <input
+        type="text"
+        id="api-key-input"
+        placeholder="Leave blank if API_KEY is unset in .env"
+        autocomplete="off"
+      />
+    </div>
+
+    <!-- Submit -->
+    <div class="btn-row">
+      <button class="btn-submit" id="submit-btn" type="button">
+        <div class="spinner" id="spinner"></div>
+        <span class="btn-label" id="btn-label">Classify Intent</span>
+      </button>
+      <span class="latency-hint" id="latency-hint"></span>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       Error panel
+  ================================================================ -->
+  <div class="error-panel" id="error-panel">
+    <strong>Error:</strong> <span id="error-text"></span>
+  </div>
+
+  <!-- ================================================================
+       Results card
+  ================================================================ -->
+  <section class="card results-card" id="results-card">
+    <div class="card-title">Classification Result</div>
+
+    <div class="telemetry-grid">
+
+      <!-- Left: intent badge -->
+      <div class="intent-badge" id="intent-badge">
+        <span class="badge-label">Intent</span>
+        <span class="badge-value" id="intent-value">—</span>
+      </div>
+
+      <!-- Right: telemetry stack -->
+      <div class="telemetry-stack">
+
+        <!-- Confidence bar -->
+        <div class="confidence-row">
+          <span class="confidence-label">Confidence</span>
+          <div class="bar-track">
+            <div class="bar-fill" id="bar-fill"></div>
+          </div>
+          <span class="confidence-pct" id="confidence-pct">—</span>
+        </div>
+
+        <!-- Metadata chips -->
+        <div class="meta-row" id="meta-row"></div>
+
+        <!-- LangGraph routing path -->
+        <div class="pipeline-path" id="pipeline-path">
+          <span class="path-node">classify</span>
+          <span class="path-arrow">›</span>
+          <span class="path-node" id="pipeline-node">—</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Reasoning -->
+    <div class="reasoning-section" id="reasoning-section" style="display:none">
+      <div class="section-title">Classifier Reasoning</div>
+      <p class="reasoning-text" id="reasoning-text"></p>
+    </div>
+
+    <!-- Pipeline response -->
+    <div class="response-section">
+      <div class="section-title">Pipeline Response</div>
+      <div class="response-body" id="response-body"></div>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       Footer
+  ================================================================ -->
+  <footer class="footer">
+    <span>LangGraph · qwen3:8b · Ollama @ localhost:11434</span>
+    <span>POST /api/v1/classify</span>
+  </footer>
+
+</div><!-- /.shell -->
+
+<script>
+  "use strict";
+
+  // =====================================================================
+  // Constants
+  // =====================================================================
+  const CLASSIFY_URL = "/api/v1/classify";
+  const HEALTH_URL   = "/health";
+
+  // =====================================================================
+  // DOM refs
+  // =====================================================================
+  const presetSelect = document.getElementById("preset-select");
+  const queryInput   = document.getElementById("query-input");
+  const apiKeyInput  = document.getElementById("api-key-input");
+  const submitBtn    = document.getElementById("submit-btn");
+  const spinner      = document.getElementById("spinner");
+  const btnLabel     = document.getElementById("btn-label");
+  const latencyHint  = document.getElementById("latency-hint");
+
+  const statusPill   = document.getElementById("status-pill");
+  const statusLabel  = document.getElementById("status-label");
+
+  const errorPanel   = document.getElementById("error-panel");
+  const errorText    = document.getElementById("error-text");
+
+  const resultsCard     = document.getElementById("results-card");
+  const intentBadge     = document.getElementById("intent-badge");
+  const intentValue     = document.getElementById("intent-value");
+  const barFill         = document.getElementById("bar-fill");
+  const confidencePct   = document.getElementById("confidence-pct");
+  const metaRow         = document.getElementById("meta-row");
+  const pipelineNode    = document.getElementById("pipeline-node");
+  const reasoningSection = document.getElementById("reasoning-section");
+  const reasoningText   = document.getElementById("reasoning-text");
+  const responseBody    = document.getElementById("response-body");
+
+  // =====================================================================
+  // Health check — update status pill
+  // =====================================================================
+  async function checkHealth() {
+    try {
+      const res = await fetch(HEALTH_URL, { signal: AbortSignal.timeout(4000) });
+      if (res.ok) {
+        statusPill.className = "status-pill online";
+        statusLabel.textContent = "backend online";
+      } else {
+        throw new Error(`HTTP ${res.status}`);
+      }
+    } catch (err) {
+      statusPill.className = "status-pill offline";
+      statusLabel.textContent = "backend offline";
+    }
+  }
+
+  // =====================================================================
+  // Preset → textarea
+  // =====================================================================
+  presetSelect.addEventListener("change", () => {
+    const val = presetSelect.value;
+    if (val) {
+      queryInput.value = val;
+      queryInput.focus();
+    }
+  });
+
+  // =====================================================================
+  // Set loading state
+  // =====================================================================
+  function setLoading(loading) {
+    submitBtn.disabled = loading;
+    submitBtn.classList.toggle("loading", loading);
+    spinner.style.display = loading ? "block" : "none";
+    btnLabel.textContent  = loading ? "Classifying…" : "Classify Intent";
+    if (loading) {
+      latencyHint.textContent = "";
+      errorPanel.style.display = "none";
+      resultsCard.style.display = "none";
+    }
+  }
+
+  // =====================================================================
+  // Show error
+  // =====================================================================
+  function showError(msg) {
+    errorPanel.style.display = "block";
+    errorText.textContent = msg;
+    resultsCard.style.display = "none";
+  }
+
+  // =====================================================================
+  // Render classification result
+  // =====================================================================
+  function renderResult(data, latencyMs) {
+    const intent     = (data.intent || "fallback").toLowerCase();
+    const confidence = typeof data.confidence === "number" ? data.confidence : 0;
+    const pct        = Math.round(confidence * 100);
+
+    // Intent badge
+    intentBadge.className = `intent-badge ${intent}`;
+    intentValue.textContent = intent.toUpperCase();
+
+    // Confidence bar
+    const barColor = intent === "rag"
+      ? "var(--rag-color)"
+      : intent === "creative"
+        ? "var(--creative-color)"
+        : "var(--fallback-color)";
+
+    barFill.style.width      = `${pct}%`;
+    barFill.style.background = barColor;
+    confidencePct.textContent = `${pct}%`;
+
+    // LangGraph node path
+    pipelineNode.textContent = intent + "_pipeline";
+    pipelineNode.className = `path-node active ${intent}`;
+
+    // Meta chips
+    metaRow.innerHTML = `
+      <span class="meta-chip">latency: ${latencyMs}ms</span>
+      <span class="meta-chip">model: qwen3:8b</span>
+      <span class="meta-chip">confidence: ${confidence.toFixed(3)}</span>
+    `;
+
+    // Reasoning
+    if (data.reasoning) {
+      reasoningSection.style.display = "block";
+      reasoningText.textContent = data.reasoning;
+    } else {
+      reasoningSection.style.display = "none";
+    }
+
+    // Pipeline answer
+    responseBody.textContent = data.answer || "(no response from pipeline)";
+
+    // Show card
+    resultsCard.style.display = "block";
+  }
+
+  // =====================================================================
+  // Main classify handler
+  // =====================================================================
+  async function classify() {
+    const query = queryInput.value.trim();
+
+    if (!query) {
+      showError("Query is empty. Enter a question or select a preset.");
+      return;
+    }
+
+    setLoading(true);
+    const t0 = performance.now();
+
+    // Build request headers
+    const headers = { "Content-Type": "application/json" };
+    const apiKey = apiKeyInput.value.trim();
+    if (apiKey) headers["X-API-Key"] = apiKey;
+
+    try {
+      const res = await fetch(CLASSIFY_URL, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ query, session_id: null }),
+        signal: AbortSignal.timeout(60_000), // 60 s — LLM calls can be slow
+      });
+
+      const latencyMs = Math.round(performance.now() - t0);
+      latencyHint.textContent = `${latencyMs}ms`;
+
+      if (!res.ok) {
+        const errBody = await res.text();
+        let detail;
+        try { detail = JSON.parse(errBody)?.detail || errBody; }
+        catch { detail = errBody; }
+        throw new Error(`HTTP ${res.status}: ${detail}`);
+      }
+
+      const data = await res.json();
+      setLoading(false);
+      renderResult(data, latencyMs);
+
+    } catch (err) {
+      setLoading(false);
+      const isTimeout = err.name === "TimeoutError";
+      const isNetwork = err.name === "TypeError" && err.message.includes("fetch");
+      if (isTimeout) {
+        showError("Request timed out (60 s). Is the Ollama daemon running? Try: ollama serve");
+      } else if (isNetwork) {
+        showError("Cannot reach the backend. Is the FastAPI server running on port 8000?");
+      } else {
+        showError(err.message || String(err));
+      }
+    }
+  }
+
+  // =====================================================================
+  // Event wiring
+  // =====================================================================
+  submitBtn.addEventListener("click", classify);
+
+  queryInput.addEventListener("keydown", (e) => {
+    // Ctrl+Enter or Cmd+Enter to submit (textarea swallows plain Enter)
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) classify();
+  });
+
+  // =====================================================================
+  // Boot
+  // =====================================================================
+  checkHealth();
+  // Re-check every 30 s so the status pill stays current
+  setInterval(checkHealth, 30_000);
+</script>
+</body>
+</html>
