@@ -60,7 +60,7 @@ chroma_db/
 *.ckpt
 *.bin
 *.safetensors
-models/
+/models/          # top-level model-weights dir only; NOT the src/models/ package
 
 # IDE
 .vscode/

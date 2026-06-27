@@ -1,18 +1,11 @@
+# Developer tooling — installs the full runtime stack plus test/lint tools.
 -r requirements.txt
 
-# Testing
+# --- Testing ---
 pytest>=8.2.0
 pytest-asyncio>=0.23.0
-pytest-cov>=5.0.0
-httpx>=0.27.0            # async test client for FastAPI
+httpx>=0.27.0            # FastAPI TestClient / async HTTP in tests
 
-# Linting & formatting
-ruff>=0.4.0
-mypy>=1.10.0
-
-# Notebooks
-jupyter>=1.0.0
-ipykernel>=6.29.0
-
-# Type stubs
-types-PyYAML>=6.0.12
+# --- Formatting & linting ---
+black>=24.4.0
+flake8>=7.0.0

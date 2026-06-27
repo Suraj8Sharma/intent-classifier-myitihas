@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -16,7 +16,9 @@ async def test_router_routes_to_rag(router: IntentRouter) -> None:
     classified = ClassifiedIntent(intent=Intent.RAG, confidence=0.9)
     with (
         patch.object(router._classifier, "classify", new=AsyncMock(return_value=classified)),
-        patch.object(router._rag, "answer", new=AsyncMock(return_value="The refund window is 30 days.")),
+        patch.object(
+            router._rag, "answer", new=AsyncMock(return_value="The refund window is 30 days.")
+        ),
     ):
         response = await router.route("What is the refund policy?")
 

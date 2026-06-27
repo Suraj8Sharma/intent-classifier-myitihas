@@ -9,19 +9,20 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    # LLM
-    anthropic_api_key: str = Field(..., alias="ANTHROPIC_API_KEY")
-    classifier_model: str = "claude-sonnet-4-6"
-    rag_model: str = "claude-sonnet-4-6"
-    creative_model: str = "claude-sonnet-4-6"
+    # LLM (local Ollama via OpenAI-compatible API)
+    ollama_base_url: str = Field("http://localhost:11434/v1", alias="OLLAMA_BASE_URL")
+    ollama_api_key: str = Field("ollama", alias="OLLAMA_API_KEY")  # placeholder; Ollama ignores it
+    classifier_model: str = "qwen3:8b"
+    rag_model: str = "qwen3:8b"
+    creative_model: str = "qwen3:8b"
 
     # Vector store
     vector_store_provider: str = "chroma"
     chroma_persist_dir: str = "./data/embeddings"
 
-    # Embeddings
-    embedding_model: str = "text-embedding-3-small"
-    embedding_provider: str = "openai"
+    # Embeddings (served locally by Ollama)
+    embedding_model: str = "nomic-embed-text"
+    embedding_provider: str = "ollama"
 
     # API
     api_host: str = "0.0.0.0"
@@ -46,6 +47,7 @@ def load_yaml_config(env: str = "development") -> dict:
         cfg = yaml.safe_load(base.read_text()) or {}
     if override.exists():
         import copy
+
         overrides = yaml.safe_load(override.read_text()) or {}
         cfg = _deep_merge(copy.deepcopy(cfg), overrides)
     return cfg

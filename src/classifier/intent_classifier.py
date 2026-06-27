@@ -14,7 +14,9 @@ class IntentClassifier:
         self._settings = get_settings()
 
     async def classify(self, query: str) -> ClassifiedIntent:
-        prompt = CLASSIFIER_PROMPT_TEMPLATE.format(query=query)
+        # The classifier prompt embeds a literal JSON example, so str.format()
+        # would choke on its braces — substitute the placeholder directly.
+        prompt = CLASSIFIER_PROMPT_TEMPLATE.replace("{query}", query)
         raw = await completion(
             model=self._settings.classifier_model,
             system=CLASSIFIER_SYSTEM,
