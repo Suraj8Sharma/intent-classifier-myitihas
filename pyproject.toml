@@ -2,22 +2,12 @@
 name = "intent-classifier"
 version = "0.1.0"
 description = "Routes natural language queries to backend pipelines via intent classification"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 
-[tool.ruff]
+[tool.black]
 line-length = 100
-target-version = "py311"
-
-[tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B"]
-ignore = ["E501"]
-
-[tool.mypy]
-python_version = "3.11"
-strict = true
-ignore_missing_imports = true
+target-version = ["py310"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-addopts = "--cov=src --cov-report=term-missing"
